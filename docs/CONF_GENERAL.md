@@ -1,6 +1,6 @@
 # Configuración General - Docker y Despliegue
 
-Esta documentación explica en detalle cómo configurar y levantar el proyecto FUNA FENIX usando Docker, incluyendo todos los servicios necesarios y su configuración.
+Esta documentación explica en detalle cómo configurar y levantar el proyecto usando Docker, incluyendo todos los servicios necesarios y su configuración.
 
 ## 📋 Tabla de Contenidos
 
