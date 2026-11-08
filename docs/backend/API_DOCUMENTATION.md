@@ -1,19 +1,39 @@
-# 📡 API Documentation - FUNA FENIX Backend
+# 📡 Documentación de API - RetroApp Backend
 
 ## Descripción General
 
-El backend de FUNA FENIX es una API REST construida con Laravel 11 que proporciona servicios para la gestión de retroalimentación de equipos. Utiliza autenticación basada en tokens con Laravel Sanctum y broadcasting en tiempo real con Soketi.
+API REST construida con Laravel 11 para la gestión de dinámicas de retroalimentación en equipos de desarrollo. Implementa autenticación por tokens stateless con Laravel Sanctum y despacho de eventos en tiempo real con Soketi (compatible con el protocolo de Pusher).
 
-## Autenticación
+---
 
-Todas las rutas protegidas requieren un token Bearer en el header `Authorization`.
+## Estándares y Convenciones
 
-### Endpoints de Autenticación
+- **URL Base**: `http://localhost:8000/api`
+- **Headers Obligatorios** (rutas protegidas):
+  ```http
+  Authorization: Bearer {token}
+  Content-Type: application/json
+  Accept: application/json
+  ```
+- **Rate Limiting**: 60 solicitudes/minuto por IP en endpoints de autenticación pública.
+- **Formato Estándar de Errores**:
+  ```json
+  {
+    "message": "Descripción del error.",
+    "errors": {
+      "campo": ["Detalle de validación."]
+    }
+  }
+  ```
 
-#### POST /api/auth/login-admin
-Autenticación para usuarios administradores.
+---
 
-**Request:**
+## 🔐 Autenticación
+
+### POST `/api/auth/login-admin`
+Autentica administradores del sistema.
+
+**Body (JSON):**
 ```json
 {
   "email": "admin@admin.com",
@@ -21,13 +41,13 @@ Autenticación para usuarios administradores.
 }
 ```
 
-**Response Success (200):**
+**Respuesta Exitosa (`200 OK`):**
 ```json
 {
   "message": "Login successful",
   "user": {
     "id": 1,
-    "name": "Administrator",
+    "name": "Administrador",
     "email": "admin@admin.com",
     "role": "admin"
   },
@@ -36,30 +56,23 @@ Autenticación para usuarios administradores.
 }
 ```
 
-**Response Error (401):**
+### POST `/api/auth/login-guest`
+Permite el acceso a miembros o evaluadores anónimos.
+
+**Body (JSON):**
 ```json
 {
-  "error": "Credenciales inválidas"
+  "name": "Invitado",
+  "hash": "unique_guest_hash"
 }
 ```
 
-#### POST /api/auth/login-guest
-Autenticación para invitados anónimos.
-
-**Request:**
-```json
-{
-  "name": "Usuario Invitado", // Opcional
-  "hash": "unique_guest_hash" // Opcional
-}
-```
-
-**Response Success (200):**
+**Respuesta Exitosa (`200 OK`):**
 ```json
 {
   "user": {
     "id": 2,
-    "name": "Usuario Invitado",
+    "name": "Invitado",
     "email": null,
     "role": "guest",
     "guest_hash": "generated_hash"
@@ -68,470 +81,155 @@ Autenticación para invitados anónimos.
 }
 ```
 
-#### POST /api/auth/logout
-Cierra la sesión del usuario actual.
+### POST `/api/auth/logout`
+Revoca el token activo del usuario autenticado.
 
-**Headers:**
-```
-Authorization: Bearer {token}
-```
-
-**Response Success (200):**
+**Respuesta Exitosa (`200 OK`):**
 ```json
 {
   "message": "Sesión cerrada correctamente"
 }
 ```
 
-#### GET /api/user
-Obtiene información del usuario autenticado.
+### GET `/api/user`
+Devuelve el perfil del usuario autenticado.
 
-**Headers:**
-```
-Authorization: Bearer {token}
-```
-
-**Response Success (200):**
+**Respuesta Exitosa (`200 OK`):**
 ```json
 {
   "id": 1,
-  "name": "Administrator",
+  "name": "Administrador",
   "email": "admin@admin.com",
-  "role": "admin",
-  "created_at": "2024-01-01T00:00:00.000000Z",
-  "updated_at": "2024-01-01T00:00:00.000000Z"
+  "role": "admin"
 }
 ```
 
-## Team Members API
+---
 
-### GET /api/team-members
-Obtiene todos los miembros del equipo. **Requiere rol admin.**
+## 👥 Miembros del Equipo de Desarrollo (`/api/team-members`)
 
-**Headers:**
-```
-Authorization: Bearer {admin_token}
-```
+| Método | Endpoint | Permiso Requerido | Descripción |
+|---|---|---|---|
+| `GET` | `/api/team-members` | `admin` | Lista el directorio completo de integrantes. |
+| `GET` | `/api/team-members-with-feedbacks` | Autenticado | Devuelve los miembros junto a sus notas asociadas. |
+| `POST` | `/api/team-members` | `admin` | Registra un nuevo miembro del equipo. |
+| `PUT` | `/api/team-members/{id}` | `admin` | Actualiza datos de un miembro existente. |
+| `DELETE` | `/api/team-members/{id}` | `admin` | Elimina un miembro del equipo. |
 
-**Response Success (200):**
-```json
-[
-  {
-    "id": 1,
-    "name": "Juan Pérez",
-    "role": "Desarrollador Full Stack",
-    "created_at": "2024-01-01T00:00:00.000000Z",
-    "updated_at": "2024-01-01T00:00:00.000000Z"
-  }
-]
-```
+### Crear / Actualizar Miembro
 
-### GET /api/team-members-with-feedbacks
-Obtiene todos los miembros con sus feedbacks. **Accesible para usuarios autenticados.**
-
-**Headers:**
-```
-Authorization: Bearer {token}
-```
-
-**Response Success (200):**
-```json
-[
-  {
-    "id": 1,
-    "name": "Juan Pérez",
-    "role": "Desarrollador Full Stack",
-    "created_at": "2024-01-01T00:00:00.000000Z",
-    "updated_at": "2024-01-01T00:00:00.000000Z",
-    "feedbacks": [
-      {
-        "id": 1,
-        "target_id": 1,
-        "owner_id": 2,
-        "category": "achievements",
-        "title": "Excelente trabajo",
-        "text": "Ha demostrado un gran compromiso con el proyecto.",
-        "created_at": "2024-01-01T00:00:00.000000Z",
-        "updated_at": "2024-01-01T00:00:00.000000Z",
-        "owner": {
-          "id": 2,
-          "name": "María García",
-          "email": "maria@example.com",
-          "role": "admin"
-        }
-      }
-    ]
-  }
-]
-```
-
-### POST /api/team-members
-Crea un nuevo miembro del equipo. **Requiere rol admin.**
-
-**Headers:**
-```
-Authorization: Bearer {admin_token}
-Content-Type: application/json
-```
-
-**Request:**
+**Payload (`POST` / `PUT`):**
 ```json
 {
   "name": "Ana López",
-  "role": "QA Tester"
+  "role": "Desarrollador Backend"
 }
 ```
 
-**Response Success (201):**
+**Respuesta Exitosa (`201 Created` / `200 OK`):**
 ```json
 {
   "id": 2,
   "name": "Ana López",
-  "role": "QA Tester",
-  "created_at": "2024-01-01T00:00:00.000000Z",
-  "updated_at": "2024-01-01T00:00:00.000000Z"
+  "role": "Desarrollador Backend",
+  "created_at": "2026-11-08T14:00:00.000000Z",
+  "updated_at": "2026-11-08T14:00:00.000000Z"
 }
 ```
 
-**Response Validation Error (422):**
-```json
-{
-  "message": "Validation failed",
-  "errors": {
-    "name": ["El campo nombre es obligatorio."],
-    "role": ["El campo rol es obligatorio."]
-  }
-}
-```
+---
 
-### PUT /api/team-members/{id}
-Actualiza un miembro del equipo existente. **Requiere rol admin.**
+## 💬 Feedback y Retrospectivas (`/api/feedbacks`)
 
-**Headers:**
-```
-Authorization: Bearer {admin_token}
-Content-Type: application/json
-```
+### GET `/api/feedbacks`
+Lista todas las notas de feedback con la información del receptor (`target`) y el autor (`owner`).
 
-**Request:**
-```json
-{
-  "name": "Ana López Actualizada",
-  "role": "Senior QA Tester"
-}
-```
+### POST `/api/feedbacks`
+Crea una nueva tarjeta de feedback y despacha el evento WebSocket correspondiente.
 
-**Response Success (200):**
-```json
-{
-  "id": 2,
-  "name": "Ana López Actualizada",
-  "role": "Senior QA Tester",
-  "created_at": "2024-01-01T00:00:00.000000Z",
-  "updated_at": "2024-01-01T01:00:00.000000Z"
-}
-```
-
-### DELETE /api/team-members/{id}
-Elimina un miembro del equipo. **Requiere rol admin.**
-
-**Headers:**
-```
-Authorization: Bearer {admin_token}
-```
-
-**Response Success (200):**
-```json
-{
-  "message": "Team member deleted successfully"
-}
-```
-
-**Response Not Found (404):**
-```json
-{
-  "message": "Team member not found"
-}
-```
-
-## Feedbacks API
-
-### GET /api/feedbacks
-Obtiene todos los feedbacks.
-
-**Headers:**
-```
-Authorization: Bearer {token}
-```
-
-**Response Success (200):**
-```json
-[
-  {
-    "id": 1,
-    "target_id": 1,
-    "owner_id": 2,
-    "category": "achievements",
-    "title": "Excelente trabajo",
-    "text": "Ha demostrado un gran compromiso con el proyecto.",
-    "created_at": "2024-01-01T00:00:00.000000Z",
-    "updated_at": "2024-01-01T00:00:00.000000Z",
-    "target": {
-      "id": 1,
-      "name": "Juan Pérez",
-      "role": "Desarrollador Full Stack"
-    },
-    "owner": {
-      "id": 2,
-      "name": "María García",
-      "email": "maria@example.com",
-      "role": "admin"
-    }
-  }
-]
-```
-
-### POST /api/feedbacks
-Crea un nuevo feedback.
-
-**Headers:**
-```
-Authorization: Bearer {token}
-Content-Type: application/json
-```
-
-**Request:**
+**Body (JSON):**
 ```json
 {
   "target_id": 1,
-  "category": "qualities",
-  "title": "Gran colaborador",
-  "text": "Siempre está dispuesto a ayudar a sus compañeros."
-}
-```
-
-**Categorías disponibles:**
-- `achievements`: Logros y éxitos
-- `qualities`: Cualidades personales y profesionales  
-- `potential`: Potencial de crecimiento y mejoras
-
-**Validaciones:**
-- `target_id`: Requerido, debe existir en la tabla team_members
-- `category`: Requerido, debe ser uno de: achievements, qualities, potential
-- `title`: Requerido, máximo 50 caracteres
-- `text`: Requerido, máximo 300 caracteres
-
-**Response Success (201):**
-```json
-{
-  "id": 2,
-  "target_id": 1,
-  "owner_id": 2,
-  "category": "qualities",
-  "title": "Gran colaborador",
-  "text": "Siempre está dispuesto a ayudar a sus compañeros.",
-  "created_at": "2024-01-01T00:00:00.000000Z",
-  "updated_at": "2024-01-01T00:00:00.000000Z"
-}
-```
-
-**Response Validation Error (422):**
-```json
-{
-  "message": "Validation failed",
-  "errors": {
-    "target_id": ["El campo miembro del equipo es obligatorio."],
-    "category": ["La categoría seleccionada no es válida."],
-    "title": ["El título no puede tener más de 50 caracteres."],
-    "text": ["El contenido no puede tener más de 300 caracteres."]
-  }
-}
-```
-
-### GET /api/feedbacks/{id}
-Obtiene un feedback específico.
-
-**Headers:**
-```
-Authorization: Bearer {token}
-```
-
-**Response Success (200):**
-```json
-{
-  "id": 1,
-  "target_id": 1,
-  "owner_id": 2,
   "category": "achievements",
-  "title": "Excelente trabajo",
-  "text": "Ha demostrado un gran compromiso con el proyecto.",
-  "created_at": "2024-01-01T00:00:00.000000Z",
-  "updated_at": "2024-01-01T00:00:00.000000Z",
-  "target": {
-    "id": 1,
-    "name": "Juan Pérez",
-    "role": "Desarrollador Full Stack"
-  },
-  "owner": {
-    "id": 2,
-    "name": "María García",
-    "email": "maria@example.com",
-    "role": "admin"
-  }
+  "title": "Excelente entrega de sprint",
+  "text": "Lideró la refactorización del módulo de colas con alta calidad."
 }
 ```
 
-### PUT /api/feedbacks/{id}
-Actualiza un feedback existente. **Solo el propietario o admin pueden editar.**
+**Reglas de Validación:**
+- `target_id`: Requerido. Debe existir en la tabla `team_members`.
+- `category`: Requerido. Valores admitidos:
+  - `achievements`: Logros e hitos alcanzados.
+  - `qualities`: Cualidades personales y habilidades blandas.
+  - `potential`: Áreas de crecimiento y oportunidad de mejora.
+- `title`: Requerido. Texto plano, máximo 50 caracteres.
+- `text`: Requerido. Texto descriptivo, máximo 300 caracteres.
 
-**Headers:**
-```
-Authorization: Bearer {token}
-Content-Type: application/json
-```
+### PUT `/api/feedbacks/{id}`
+Actualiza el contenido de una nota.
 
-**Request:**
-```json
-{
-  "title": "Título actualizado",
-  "text": "Contenido actualizado del feedback.",
-  "category": "potential"
-}
-```
+> 🔒 **Permisos:** Únicamente el autor de la tarjeta (`owner`) o un usuario con rol `admin` pueden editarla. De lo contrario, la API devuelve `403 Forbidden`.
 
-**Response Success (200):**
-```json
-{
-  "id": 1,
-  "target_id": 1,
-  "owner_id": 2,
-  "category": "potential",
-  "title": "Título actualizado",
-  "text": "Contenido actualizado del feedback.",
-  "created_at": "2024-01-01T00:00:00.000000Z",
-  "updated_at": "2024-01-01T01:00:00.000000Z"
-}
-```
+### DELETE `/api/feedbacks/{id}`
+Elimina la nota del tablero y emite el evento de remoción a los clientes conectados. Aplica la misma restricción de permisos (`owner` o `admin`).
 
-**Response Authorization Error (403):**
-```json
-{
-  "message": "No autorizado. Solo el propietario o un administrador pueden modificar este feedback."
-}
-```
+---
 
-### DELETE /api/feedbacks/{id}
-Elimina un feedback. **Solo el propietario o admin pueden eliminar.**
+## ⚡ Eventos en Tiempo Real (Soketi)
 
-**Headers:**
-```
-Authorization: Bearer {token}
-```
+La API despacha eventos en canales públicos autenticados mediante Laravel Echo:
 
-**Response Success (200):**
-```json
-{
-  "message": "Feedback deleted successfully"
-}
-```
+| Canal | Evento | Disparador | Contenido (`data`) |
+|---|---|---|---|
+| `feedback-updates` | `feedback.created` | `POST /api/feedbacks` | Entidad `feedback` completa con relaciones. |
+| `feedback-updates` | `feedback.updated` | `PUT /api/feedbacks/{id}` | Entidad `feedback` actualizada. |
+| `feedback-updates` | `feedback.deleted` | `DELETE /api/feedbacks/{id}` | Objeto con el `id` del feedback removido. |
+| `team-updates` | `team-member.created` | `POST /api/team-members` | Entidad `team_member` creada. |
+| `team-updates` | `team-member.updated` | `PUT /api/team-members/{id}` | Entidad `team_member` modificada. |
+| `team-updates` | `team-member.deleted` | `DELETE /api/team-members/{id}` | Objeto con el `id` del miembro eliminado. |
 
-**Response Authorization Error (403):**
-```json
-{
-  "message": "No autorizado. Solo el propietario o un administrador pueden modificar este feedback."
-}
-```
-
-## Códigos de Estado HTTP
-
-- **200 OK**: Operación exitosa
-- **201 Created**: Recurso creado exitosamente
-- **401 Unauthorized**: Token inválido o expirado
-- **403 Forbidden**: Sin permisos para realizar la operación
-- **404 Not Found**: Recurso no encontrado
-- **422 Unprocessable Entity**: Errores de validación
-- **500 Internal Server Error**: Error interno del servidor
-
-## Headers Requeridos
-
-Para todas las rutas protegidas:
-```
-Authorization: Bearer {token}
-Content-Type: application/json
-Accept: application/json
-```
-
-## Rate Limiting
-
-El API tiene limitaciones de velocidad configuradas:
-- 60 requests por minuto por IP para rutas de autenticación
-- Sin límites para rutas autenticadas (configurado en middleware)
-
-## Manejo de Errores
-
-Todos los errores siguen un formato consistente:
-
-```json
-{
-  "message": "Descripción del error",
-  "error": "Detalles técnicos del error", // Solo en modo debug
-  "errors": { // Solo para errores de validación
-    "campo": ["Mensaje de error específico"]
-  }
-}
-```
-
-## Eventos de Broadcasting
-
-La API emite eventos en tiempo real para las siguientes operaciones:
-
-### Feedback Events
-- **feedback.created**: Se emite cuando se crea un nuevo feedback
-- **feedback.updated**: Se emite cuando se actualiza un feedback
-- **feedback.deleted**: Se emite cuando se elimina un feedback
-
-### Team Member Events  
-- **team-member.created**: Se emite cuando se crea un nuevo miembro
-- **team-member.updated**: Se emite cuando se actualiza un miembro
-- **team-member.deleted**: Se emite cuando se elimina un miembro
-
-**Estructura del evento:**
+**Esquema de Payload emitido:**
 ```json
 {
   "event": "feedback.created",
+  "channel": "feedback-updates",
   "data": {
-    "feedback": { /* objeto feedback completo */ }
-  },
-  "channel": "feedback-updates"
+    "feedback": {
+      "id": 15,
+      "target_id": 1,
+      "owner_id": 2,
+      "category": "achievements",
+      "title": "Excelente entrega de sprint",
+      "text": "Lideró la refactorización del módulo de colas con alta calidad.",
+      "created_at": "2026-11-08T14:00:00.000000Z"
+    }
+  }
 }
 ```
 
-## Testing
+---
 
-Para probar la API puedes usar los siguientes comandos curl:
+## 🧪 Pruebas Rápidas con cURL
 
-### Autenticación Admin
 ```bash
-curl -X POST http://localhost:8000/api/auth/login-admin \
+# 1. Inicio de sesión como administrador
+curl -s -X POST http://localhost:8000/api/auth/login-admin \
   -H "Content-Type: application/json" \
   -d '{"email":"admin@admin.com","password":"admin"}'
-```
 
-### Crear Feedback
-```bash
+# 2. Creación de nota de feedback (sustituir YOUR_TOKEN)
 curl -X POST http://localhost:8000/api/feedbacks \
   -H "Authorization: Bearer YOUR_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{
     "target_id": 1,
     "category": "achievements",
-    "title": "Excelente trabajo",
-    "text": "Ha superado todas las expectativas en el proyecto."
+    "title": "Gran despliegue",
+    "text": "Completó la migración sin tiempo de inactividad."
   }'
-```
 
-### Obtener Team Members con Feedbacks
-```bash
+# 3. Consulta de tablero con feedbacks asociados
 curl -X GET http://localhost:8000/api/team-members-with-feedbacks \
   -H "Authorization: Bearer YOUR_TOKEN" \
   -H "Accept: application/json"
