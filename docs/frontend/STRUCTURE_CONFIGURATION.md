@@ -1,8 +1,8 @@
-# 🎨 Frontend Structure & Configuration - FUNA FENIX
+# 🎨 Frontend Structure & Configuration - 
 
 ## Descripción General
 
-El frontend de FUNA FENIX es una aplicación React moderna construida con Vite, que proporciona una interfaz de usuario interactiva para la gestión de retroalimentación de equipos en tiempo real. Utiliza Tailwind CSS para el diseño y Laravel Echo con Pusher.js para comunicación WebSocket.
+El frontend de RetroApp es una aplicación React moderna construida con Vite, que proporciona una interfaz de usuario interactiva para la gestión de retroalimentación de equipos en tiempo real. Utiliza Tailwind CSS para el diseño y Laravel Echo con Pusher.js para comunicación WebSocket.
 
 ## Estructura de Directorios
 
