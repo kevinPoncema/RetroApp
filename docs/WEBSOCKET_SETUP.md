@@ -1,4 +1,4 @@
-# WebSocket Setup Guide - FUNA FENIX
+# WebSocket Setup Guide
 
 ## 📡 Guía Completa de Configuración WebSocket
 
