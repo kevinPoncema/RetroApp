@@ -1,8 +1,16 @@
-⚙️ Guía de Configuración - RetroApp Backend
-Descripción General
-Esta guía detalla las configuraciones necesarias para el funcionamiento del backend de RetroApp, incluyendo variables de entorno, broadcasting en tiempo real (Soketi), autenticación con Sanctum y configuraciones del framework Laravel 11.
-Variables de Entorno (.env)
-Archivo .env Principal (Backend)
+# ⚙️ Guía de Configuración - RetroApp Backend
+
+## Descripción General
+
+Esta guía detalla las configuraciones necesarias para el funcionamiento del backend de **RetroApp**, incluyendo variables de entorno, broadcasting en tiempo real (Soketi), autenticación con Laravel Sanctum y configuraciones del framework Laravel 11.
+
+---
+
+## Variables de Entorno (`.env`)
+
+### Archivo `.env` Principal (Backend)
+
+```bash
 # ========================================
 # APLICACIÓN
 # ========================================
@@ -55,8 +63,11 @@ FRONTEND_URL=http://localhost:5173
 # ========================================
 LOG_CHANNEL=stack
 LOG_LEVEL=debug
+```
 
-Variables para Docker Compose (.env raíz)
+### Variables para Docker Compose (`.env` raíz)
+
+```bash
 DB_ROOT_PASSWORD=root_secret
 DB_DATABASE=retro_db
 DB_USERNAME=app_user
@@ -68,9 +79,15 @@ PUSHER_APP_SECRET=local-secret
 
 FRONTEND_URL=http://localhost:5173
 BACKEND_URL=http://localhost:8000
+```
 
-Broadcasting y WebSockets
-Configuración Laravel (config/broadcasting.php)
+---
+
+## Broadcasting y WebSockets
+
+### Configuración Laravel (`config/broadcasting.php`)
+
+```php
 <?php
 
 return [
@@ -103,8 +120,11 @@ return [
         ],
     ],
 ];
+```
 
-Configuración Soketi (soketi-config.json)
+### Configuración Soketi (`soketi-config.json`)
+
+```json
 {
   "debug": false,
   "port": 6001,
@@ -132,10 +152,15 @@ Configuración Soketi (soketi-config.json)
     "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"]
   }
 }
+```
 
-> Regla de consistencia: Los valores de id, key y secret deben ser idénticos a los definidos en las variables PUSHER_* del archivo .env.
-> 
-Canales de Difusión (routes/channels.php)
+> **Regla de consistencia:** Los valores de `id`, `key` y `secret` deben ser idénticos a los definidos en las variables `PUSHER_*` del archivo `.env`.
+
+---
+
+## Canales de Difusión (`routes/channels.php`)
+
+```php
 <?php
 
 use Illuminate\Support\Facades\Broadcast;
@@ -149,17 +174,26 @@ Broadcast::channel('feedback-updates', function () {
 Broadcast::channel('team-updates', function () {
     return true;
 });
+```
 
-Habilita BroadcastServiceProvider en bootstrap/providers.php:
+Habilita `BroadcastServiceProvider` en `bootstrap/providers.php`:
+
+```php
 <?php
 
 return [
     App\Providers\AppServiceProvider::class,
     App\Providers\BroadcastServiceProvider::class,
 ];
+```
 
-Autenticación y Control de Acceso
-Configuración Sanctum (config/sanctum.php)
+---
+
+## Autenticación y Control de Acceso
+
+### Configuración Sanctum (`config/sanctum.php`)
+
+```php
 <?php
 
 return [
@@ -172,8 +206,11 @@ return [
         'validate_csrf_token' => Illuminate\Foundation\Http\Middleware\ValidateCsrfToken::class,
     ],
 ];
+```
 
-Middleware IsAdmin (app/Http/Middleware/IsAdmin.php)
+### Middleware `IsAdmin` (`app/Http/Middleware/IsAdmin.php`)
+
+```php
 <?php
 
 namespace App\Http\Middleware;
@@ -195,16 +232,25 @@ class IsAdmin
         return $next($request);
     }
 }
+```
 
-Registro del alias en bootstrap/app.php:
+Registro del alias en `bootstrap/app.php`:
+
+```php
 ->withMiddleware(function (Middleware $middleware) {
     $middleware->alias([
         'isAdmin' => \App\Http\Middleware\IsAdmin::class,
     ]);
 })
+```
 
-Procesamiento Asíncrono (config/queue.php)
+---
+
+## Procesamiento Asíncrono (`config/queue.php`)
+
 Para evitar bloquear las respuestas HTTP al despachar eventos a Soketi, las tareas se procesan en segundo plano:
+
+```php
 <?php
 
 return [
@@ -226,8 +272,13 @@ return [
         'table' => 'failed_jobs',
     ],
 ];
+```
 
-Script de Inicialización (backend/start.sh)
+---
+
+## Script de Inicialización (`backend/start.sh`)
+
+```bash
 #!/bin/bash
 set -e
 
@@ -280,11 +331,15 @@ echo "✅ RetroApp Backend listo en http://localhost:8000"
 echo "📡 Soketi activo en ws://localhost:6001"
 
 wait
+```
 
-Diagnóstico y Resolución de Problemas
+---
+
+## Diagnóstico y Resolución de Problemas
+
 | Incidencia | Causa Habitual | Validación y Solución |
 |---|---|---|
-| Eventos no llegan al frontend | Soketi detenido o worker inactivo | Comprobar puerto con curl http://localhost:6001/ y verificar proceso con docker compose exec backend ps aux | grep queue. |
-| Error 401 Unauthorized / 419 CSRF | Dominios stateful o CORS desalineados | Asegurar que SANCTUM_STATEFUL_DOMAINS contenga el host exacto del frontend (localhost:5173). |
-| Error de conexión a BD | MySQL no ha completado el inicio | Confirmar estado del contenedor con docker compose ps database y revisar credenciales en .env. |
-| Error de permisos en logs/cache | Permisos insuficientes en /storage | Ejecutar chmod -R 775 storage bootstrap/cache && chown -R www-data:www-data storage bootstrap/cache. |
+| **Eventos no llegan al frontend** | Soketi detenido o worker inactivo | Comprobar puerto con `curl http://localhost:6001/` y verificar proceso con `docker compose exec backend ps aux \| grep queue`. |
+| **Error `401 Unauthorized` / `419 CSRF`** | Dominios stateful o CORS desalineados | Asegurar que `SANCTUM_STATEFUL_DOMAINS` contenga el host exacto del frontend (`localhost:5173`). |
+| **Error de conexión a BD** | MySQL no ha completado el inicio | Confirmar estado del contenedor con `docker compose ps database` y revisar credenciales en `.env`. |
+| **Error de permisos en logs/cache** | Permisos insuficientes en `/storage` | Ejecutar `chmod -R 775 storage bootstrap/cache && chown -R www-data:www-data storage bootstrap/cache`. |
